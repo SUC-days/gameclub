@@ -4,63 +4,49 @@
   <title>ゲーム部受付システム</title>
   <style>
     body {
-      font-family: sans-serif;
+      font-family: 'Helvetica Neue', sans-serif;
+      background: #f5f5f5;
+      color: #333;
       text-align: center;
-      padding: 1rem;
+      padding: 2rem 1rem;
       margin: 0;
-      position: relative;
     }
+
+    main {
+      max-width: 700px;
+      margin: auto;
+      background: white;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      padding: 2rem;
+      border-radius: 12px;
+    }
+
+    h1, h2 {
+      color: #d94c2c;
+      margin-bottom: 1rem;
+    }
+
     video {
       width: 100%;
       max-width: 500px;
-      border: 1px solid #ccc;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     }
-    table {
-      margin-top: 1rem;
-      width: 100%;
-      max-width: 500px;
-      border-collapse: collapse;
-    }
-    th, td {
-      border: 1px solid #ccc;
-      padding: 0.5rem;
-    }
-    #overlay {
-      position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background-color: rgba(0, 0, 0, 0.8);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      z-index: 9999;
-    }
-    #overlay-message {
-      color: white;
-      font-size: 1.5rem;
-      padding: 2rem;
-      background: rgba(0, 0, 0, 0.6);
-      border: 2px solid white;
-      border-radius: 1rem;
-      text-align: center;
-    }
-    #overlay-message button {
-      margin-top: 1rem;
-      padding: 0.5rem 1.5rem;
-      font-size: 1rem;
-    }
+
     #scanner-frame {
       position: absolute;
       top: 50%;
       left: 50%;
       width: 250px;
       height: 250px;
-      border: 3px solid #00ff00;
+      border: 3px solid #00cc66;
       transform: translate(-50%, -50%);
       z-index: 10;
       pointer-events: none;
-      box-shadow: 0 0 10px #00ff00;
-      border-radius: 10px;
+      box-shadow: 0 0 12px #00cc66;
+      border-radius: 12px;
     }
+
     #scanner-frame::before {
       content: '';
       position: absolute;
@@ -68,52 +54,132 @@
       top: 50%;
       width: 30px;
       height: 2px;
-      background: #00ff00;
+      background: #00cc66;
       transform: translate(-50%, -50%);
       animation: blink 1s infinite;
     }
+
     @keyframes blink {
       0%, 100% { opacity: 1; }
       50% { opacity: 0; }
     }
+
     #guide {
+      font-size: 1rem;
       margin-top: 1rem;
-      color: #333;
-      font-size: 0.9rem;
+      color: #555;
     }
+
     #result {
       margin: 1rem auto;
-      word-break: break-all;
+      padding: 1rem;
+      background: #fff8e1;
+      border: 1px solid #ffd54f;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      text-align: left;
       max-width: 90%;
       max-height: 150px;
-      overflow: auto;
-      border: 1px solid #ccc;
-      padding: 0.5rem;
-      background: #f9f9f9;
-      text-align: left;
+      overflow-y: auto;
+    }
+
+    table {
+      margin: 1rem auto;
+      border-collapse: collapse;
+      width: 100%;
+      max-width: 600px;
+      background: #fff;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    }
+
+    th {
+      background-color: #ffcc80;
+      color: #333;
+      padding: 0.75rem;
+    }
+
+    td {
+      padding: 0.75rem;
+      border-bottom: 1px solid #eee;
+    }
+
+    #overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-color: rgba(0, 0, 0, 0.75);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+    }
+
+    #overlay-message {
+      color: white;
+      font-size: 1.5rem;
+      background: #222;
+      padding: 2rem;
+      border-radius: 1rem;
+      border: 2px solid #fff;
+    }
+
+    #overlay-message button {
+      margin-top: 1rem;
+      background: #ff8a65;
+      border: none;
+      color: white;
+      padding: 0.6rem 1.5rem;
+      border-radius: 8px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    #overlay-message button:hover {
+      background: #ff7043;
+    }
+
+    button#clear-history-btn {
+      background: #90caf9;
+      border: none;
+      padding: 0.5rem 1rem;
+      margin-top: 1rem;
+      border-radius: 8px;
+      font-size: 1rem;
+      color: #333;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    button#clear-history-btn:hover {
+      background: #64b5f6;
     }
   </style>
 </head>
 <body>
-  <h1>QR受付システム</h1>
-  <div style="position: relative; display: inline-block;">
-    <video id="preview" autoplay muted playsinline></video>
-    <div id="scanner-frame"></div>
-  </div>
-  <p id="guide">QRコードを中央に合わせ、明るい場所でご利用ください。</p>
-  <div id="result"></div>
-  <div id="overlay">
-    <div id="overlay-message">
-      <p>チケットを読み取りました</p>
-      <p>おおきに</p>
-      <button id="close-overlay-btn">閉じる</button>
+  <main>
+    <h1>QR受付システム</h1>
+    <div style="position: relative; display: inline-block;">
+      <video id="preview" autoplay muted playsinline></video>
+      <div id="scanner-frame"></div>
     </div>
-  </div>
-  <audio id="beep-sound" src="beep.mp3" preload="auto"></audio>
+    <p id="guide">QRコードを中央に合わせ、明るい場所でご利用ください。</p>
+    <div id="result"></div>
 
-  <h2>受付履歴</h2>
-  <button id="clear-history-btn">履歴をすべて削除</button>
-  <div id="history"></div>
+    <div id="overlay">
+      <div id="overlay-message">
+        <p>チケットを読み取りました</p>
+        <p>おおきに</p>
+        <button id="close-overlay-btn">閉じる</button>
+      </div>
+    </div>
+    <audio id="beep-sound" src="beep.mp3" preload="auto"></audio>
+
+    <h2>受付履歴</h2>
+    <button id="clear-history-btn">履歴をすべて削除</button>
+    <div id="history"></div>
+  </main>
 
   <script type="module">
     import QrScanner from "https://cdn.jsdelivr.net/npm/qr-scanner@1.4.2/qr-scanner.min.js";
