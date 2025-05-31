@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <title>ゲーム部受付システム</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      padding: 1rem;
+      margin: 0;
+      position: relative;
+    }
+    video {
+      width: 100%;
+      max-width: 500px;
+      border: 1px solid #ccc;
+    }
+    table {
+      margin-top: 1rem;
+      width: 100%;
+      max-width: 500px;
+      border-collapse: collapse;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 0.5rem;
+    }
+    #overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-color: rgba(0, 0, 0, 0.8);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+    }
+    #overlay-message {
+      color: white;
+      font-size: 1.5rem;
+      padding: 2rem;
+      background: rgba(0, 0, 0, 0.6);
+      border: 2px solid white;
+      border-radius: 1rem;
+      text-align: center;
+    }
+    #overlay-message button {
+      margin-top: 1rem;
+      padding: 0.5rem 1.5rem;
+      font-size: 1rem;
+    }
+    #scanner-frame {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 250px;
+      height: 250px;
+      border: 3px solid #00ff00;
+      transform: translate(-50%, -50%);
+      z-index: 10;
+      pointer-events: none;
+      box-shadow: 0 0 10px #00ff00;
+      border-radius: 10px;
+    }
+    #scanner-frame::before {
+      content: '';
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 30px;
+      height: 2px;
+      background: #00ff00;
+      transform: translate(-50%, -50%);
+      animation: blink 1s infinite;
+    }
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+    #guide {
+      margin-top: 1rem;
+      color: #333;
+      font-size: 0.9rem;
+    }
+    #result {
+      margin: 1rem auto;
+      word-break: break-all;
+      max-width: 90%;
+      max-height: 150px;
+      overflow: auto;
+      border: 1px solid #ccc;
+      padding: 0.5rem;
+      background: #f9f9f9;
+      text-align: left;
+    }
+  </style>
+</head>
+<body>
+  <h1>QR受付システム</h1>
+  <div style="position: relative; display: inline-block;">
+    <video id="preview" autoplay muted playsinline></video>
+    <div id="scanner-frame"></div>
+  </div>
+  <p id="guide">QRコードを中央に合わせ、明るい場所でご利用ください。</p>
+  <div id="result"></div>
+  <div id="overlay">
+    <div id="overlay-message">
+      <p>チケットを読み取りました</p>
+      <p>おおきに</p>
+      <button id="close-overlay-btn">閉じる</button>
+    </div>
+  </div>
+  <audio id="beep-sound" src="beep.mp3" preload="auto"></audio>
+
+  <h2>受付履歴</h2>
+  <button id="clear-history-btn">履歴をすべて削除</button>
+  <div id="history"></div>
+
+  <script type="module">
+    import QrScanner from "https://cdn.jsdelivr.net/npm/qr-scanner@1.4.2/qr-scanner.min.js";
+    QrScanner.WORKER_PATH = "https://cdn.jsdelivr.net/npm/qr-scanner@1.4.2/qr-scanner-worker.min.js";
+
+    const video = document.getElementById('preview');
+    const resultDiv = document.getElementById('result');
+    const historyDiv = document.getElementById('history');
+    const beep = document.getElementById('beep-sound');
+    const overlay = document.getElementById('overlay');
+    const closeBtn = document.getElementById('close-overlay-btn');
+    const clearBtn = document.getElementById('clear-history-btn');
+
+    let scanning = true;
+    let db;
+
+    const DB_NAME = 'qr-reception-db';
+    const STORE_NAME = 'receptions';
+
+    const request = indexedDB.open(DB_NAME, 1);
+    request.onupgradeneeded = event => {
+      const db = event.target.result;
+      db.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
+    };
+    request.onsuccess = event => {
+      db = event.target.result;
+      loadHistory();
+    };
+
+    function saveRecord(qr, count) {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      const store = tx.objectStore(STORE_NAME);
+      store.add({ qr, count });
+    }
+
+    function loadHistory() {
+      const tx = db.transaction(STORE_NAME, 'readonly');
+      const store = tx.objectStore(STORE_NAME);
+      const req = store.getAll();
+      req.onsuccess = () => {
+        const records = req.result;
+        let html = '<table><tr><th>ID</th><th>QR</th><th>回数</th></tr>';
+        records.forEach(r => {
+          html += `<tr><td>${r.id}</td><td>${r.qr}</td><td>${r.count}</td></tr>`;
+        });
+        html += '</table>';
+        historyDiv.innerHTML = html;
+      };
+    }
+
+    function showOverlay() {
+      overlay.style.display = 'flex';
+    }
+
+    closeBtn.addEventListener('click', () => {
+      overlay.style.display = 'none';
+      scanning = true;
+    });
+
+    clearBtn.addEventListener('click', () => {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      const store = tx.objectStore(STORE_NAME);
+      const clearReq = store.clear();
+      clearReq.onsuccess = () => {
+        resultDiv.textContent = '';
+        historyDiv.innerHTML = '';
+        alert('履歴を削除しました');
+      };
+    });
+
+    function startScanner() {
+      QrScanner.listCameras(true).then(cameras => {
+        const frontCamera = cameras.find(c => c.label.toLowerCase().includes('front')) || cameras[0];
+        const scanner = new QrScanner(video, result => {
+          if (!scanning) return;
+          scanning = false;
+
+          const text = result.data;
+          const tx = db.transaction(STORE_NAME, 'readonly');
+          const store = tx.objectStore(STORE_NAME);
+          const getAll = store.getAll();
+          getAll.onsuccess = () => {
+            const all = getAll.result;
+            const sameQRCount = all.filter(r => r.qr === text).length;
+            const count = sameQRCount + 1;
+
+            resultDiv.innerHTML = `<strong>受付内容:</strong><br>「${text}」<br><strong>これは ${count} 回目の受付です</strong>`;
+            saveRecord(text, count);
+            beep.play();
+            showOverlay();
+            loadHistory();
+          };
+        }, {
+          returnDetailedScanResult: true,
+          highlightScanRegion: true,
+          highlightCodeOutline: true,
+          maxScansPerSecond: Infinity,
+          preferredCamera: 'environment',
+          videoConstraints: {
+            facingMode: 'environment',
+            width: { ideal: 1920 },
+            height: { ideal: 1080 }
+          }
+        });
+
+        scanner.start().then(() => {
+          if (frontCamera) scanner.setCamera(frontCamera.id);
+        });
+      });
+    }
+
+    startScanner();
+  </script>
+</body>
+</html>
